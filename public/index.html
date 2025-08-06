@@ -36,6 +36,36 @@
             padding: 10px;
             background-color: #f9f9f9;
         }
+        #websocketLog {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f5f5f5;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .log-sent {
+            background-color: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+        .log-received {
+            background-color: #e8f5e8;
+            border-left: 3px solid #4caf50;
+        }
+        .log-connection {
+            background-color: #fff3e0;
+            border-left: 3px solid #ff9800;
+        }
+        .log-error {
+            background-color: #ffebee;
+            border-left: 3px solid #f44336;
+        }
         input, select {
             margin: 5px;
             padding: 5px;
@@ -72,6 +102,12 @@
         <button id="sendMessage" disabled>Enviar</button>
     </div>
 
+    <div class="container">
+        <h3>Log de Mensajes WebSocket</h3>
+        <button id="clearLog">Limpiar Log</button>
+        <div id="websocketLog"></div>
+    </div>
+
     <script>
         let ws = null;
         let clientType = 'panel';
@@ -84,6 +120,8 @@
         const messagesDiv = document.getElementById('messages');
         const clientTypeSelect = document.getElementById('clientType');
         const messageInput = document.getElementById('messageInput');
+        const websocketLogDiv = document.getElementById('websocketLog');
+        const clearLogBtn = document.getElementById('clearLog');
 
         function addMessage(message, type = 'info') {
             const div = document.createElement('div');
@@ -91,6 +129,16 @@
             div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addWebSocketLog(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            const typeLabel = type.toUpperCase();
+            div.innerHTML = `<strong>[${timestamp}] ${typeLabel}:</strong><br>${message}`;
+            websocketLogDiv.appendChild(div);
+            websocketLogDiv.scrollTop = websocketLogDiv.scrollHeight;
         }
 
         connectBtn.addEventListener('click', () => {
@@ -103,11 +151,13 @@
                 disconnectBtn.disabled = false;
                 identifyBtn.disabled = false;
                 addMessage('Conectado al servidor WebSocket');
+                addWebSocketLog('Conexión WebSocket establecida', 'connection');
             };
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 addMessage(`Recibido: ${JSON.stringify(data, null, 2)}`, 'received');
+                addWebSocketLog(JSON.stringify(data, null, 2), 'received');
             };
 
             ws.onclose = () => {
@@ -118,10 +168,12 @@
                 identifyBtn.disabled = true;
                 sendBtn.disabled = true;
                 addMessage('Desconectado del servidor', 'error');
+                addWebSocketLog('Conexión WebSocket cerrada', 'connection');
             };
 
             ws.onerror = (error) => {
                 addMessage(`Error: ${error}`, 'error');
+                addWebSocketLog(`Error en WebSocket: ${error}`, 'error');
             };
         });
 
@@ -139,6 +191,7 @@
             };
             ws.send(JSON.stringify(message));
             addMessage(`Enviado: ${JSON.stringify(message)}`, 'sent');
+            addWebSocketLog(JSON.stringify(message, null, 2), 'sent');
             sendBtn.disabled = false;
         });
 
@@ -149,6 +202,7 @@
                     const message = JSON.parse(customMessage);
                     ws.send(JSON.stringify(message));
                     addMessage(`Enviado: ${JSON.stringify(message)}`, 'sent');
+                    addWebSocketLog(JSON.stringify(message, null, 2), 'sent');
                     messageInput.value = '';
                 } catch (e) {
                     addMessage('Error: Mensaje debe ser JSON válido', 'error');
@@ -158,6 +212,11 @@
 
         clientTypeSelect.addEventListener('change', (e) => {
             clientType = e.target.value;
+        });
+
+        clearLogBtn.addEventListener('click', () => {
+            websocketLogDiv.innerHTML = '';
+            addWebSocketLog('Log limpiado', 'connection');
         });
     </script>
 </body>
