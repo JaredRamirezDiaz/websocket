@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        input, select {
+            margin: 5px;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Client</h1>
+    
+    <div class="container">
+        <h3>Conexión</h3>
+        <button id="connect">Conectar</button>
+        <button id="disconnect" disabled>Desconectar</button>
+        <span id="status">Desconectado</span>
+    </div>
+
+    <div class="container">
+        <h3>Identificación</h3>
+        <select id="clientType">
+            <option value="panel">Panel</option>
+            <option value="monitor">Monitor</option>
+        </select>
+        <button id="identify" disabled>Identificar</button>
+    </div>
+
+    <div class="container">
+        <h3>Mensajes</h3>
+        <div id="messages"></div>
+    </div>
+
+    <div class="container">
+        <h3>Enviar Mensaje de Prueba</h3>
+        <input type="text" id="messageInput" placeholder="Mensaje personalizado...">
+        <button id="sendMessage" disabled>Enviar</button>
+    </div>
+
+    <script>
+        let ws = null;
+        let clientType = 'panel';
+
+        const connectBtn = document.getElementById('connect');
+        const disconnectBtn = document.getElementById('disconnect');
+        const identifyBtn = document.getElementById('identify');
+        const sendBtn = document.getElementById('sendMessage');
+        const statusSpan = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const clientTypeSelect = document.getElementById('clientType');
+        const messageInput = document.getElementById('messageInput');
+
+        function addMessage(message, type = 'info') {
+            const div = document.createElement('div');
+            div.style.color = type === 'error' ? 'red' : type === 'sent' ? 'blue' : 'green';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        connectBtn.addEventListener('click', () => {
+            ws = new WebSocket('ws://localhost:8080');
+            
+            ws.onopen = () => {
+                statusSpan.textContent = 'Conectado';
+                statusSpan.style.color = 'green';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                identifyBtn.disabled = false;
+                addMessage('Conectado al servidor WebSocket');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                addMessage(`Recibido: ${JSON.stringify(data, null, 2)}`, 'received');
+            };
+
+            ws.onclose = () => {
+                statusSpan.textContent = 'Desconectado';
+                statusSpan.style.color = 'red';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                identifyBtn.disabled = true;
+                sendBtn.disabled = true;
+                addMessage('Desconectado del servidor', 'error');
+            };
+
+            ws.onerror = (error) => {
+                addMessage(`Error: ${error}`, 'error');
+            };
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+
+        identifyBtn.addEventListener('click', () => {
+            clientType = clientTypeSelect.value;
+            const message = {
+                type: 'IDENTIFY',
+                payload: { type: clientType }
+            };
+            ws.send(JSON.stringify(message));
+            addMessage(`Enviado: ${JSON.stringify(message)}`, 'sent');
+            sendBtn.disabled = false;
+        });
+
+        sendBtn.addEventListener('click', () => {
+            const customMessage = messageInput.value.trim();
+            if (customMessage) {
+                try {
+                    const message = JSON.parse(customMessage);
+                    ws.send(JSON.stringify(message));
+                    addMessage(`Enviado: ${JSON.stringify(message)}`, 'sent');
+                    messageInput.value = '';
+                } catch (e) {
+                    addMessage('Error: Mensaje debe ser JSON válido', 'error');
+                }
+            }
+        });
+
+        clientTypeSelect.addEventListener('change', (e) => {
+            clientType = e.target.value;
+        });
+    </script>
+</body>
+</html>

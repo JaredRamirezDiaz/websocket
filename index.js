@@ -1,3 +1,6 @@
+const express = require('express');
+const http = require('http');
+const path = require('path');
 const { WebSocketServer, WebSocket } = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
@@ -22,8 +25,15 @@ let currentServiceState = {
     service: null, // Agregado para una sincronización completa
 };
 
-const wss = new WebSocketServer({ port: 8080 });
-console.log('Intelligent WebSocket server (JS version) started on port 8080');
+const app = express();
+const server = http.createServer(app);
+
+// Servir archivos estáticos desde la carpeta 'public'
+app.use(express.static(path.join(__dirname, 'public')));
+
+const wss = new WebSocketServer({ server });
+
+console.log('Intelligent WebSocket server (JS version) started and attached to Express server');
 
 function broadcast(message, senderId, targetType) {
   const messageString = JSON.stringify(message);
@@ -162,4 +172,18 @@ wss.on('connection', ws => {
   ws.on('error', (error) => {
     console.error(`WebSocket error from ${clientId}:`, error);
   });
+});
+
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+    console.log(`HTTP server listening on port ${PORT}`);
+});
+
+// Agregar manejo de errores más robusto
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
